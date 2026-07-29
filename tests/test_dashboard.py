@@ -119,7 +119,7 @@ class DashboardHtmlTest(unittest.TestCase):
         self.assertIn("今日交易 ·", html)
         self.assertIn("renderTodayTrades", html)
         self.assertIn("tAdvice", html)
-        self.assertIn("账户当日盈亏", html)
+        self.assertIn("券商当日盈亏", html)
         self.assertIn("持仓估算盈亏", html)
         self.assertIn("accountSnapshotForm", html)
         self.assertIn("update_account_snapshot", html)

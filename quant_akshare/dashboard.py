@@ -1727,7 +1727,7 @@ def _html_document(title: str, views: list[PositionView], payload: dict) -> str:
       if (!dashboardTradeDayIsCurrent()) {{
         document.getElementById("todaySummary").innerHTML = `
           <div class="today-metric"><span>今日交易 · ${{currentTradeDate()}}</span><strong>待刷新</strong></div>
-          <div class="today-metric"><span>账户当日盈亏</span><strong>等待今日基准</strong></div>
+          <div class="today-metric"><span>券商当日盈亏</span><strong>等待今日基准</strong></div>
           <div class="today-metric"><span>持仓估算盈亏</span><strong>等待今日基准</strong></div>
           <div class="today-metric"><span>已实现盈亏</span><strong>-</strong></div>
           <div class="today-metric"><span>当前浮盈亏</span><strong>-</strong></div>
@@ -1757,7 +1757,7 @@ def _html_document(title: str, views: list[PositionView], payload: dict) -> str:
       const tradeCount = metrics ? metrics.tradeCount : todayTrades.length;
       document.getElementById("todaySummary").innerHTML = `
         <div class="today-metric"><span>今日交易 · ${{currentTradeDate()}}</span><strong>${{tradeCount}} 笔</strong></div>
-        <div class="today-metric"><span>账户当日盈亏${{dailyRate === null ? "" : " · " + (dailyRate * 100).toFixed(2) + "%"}}</span><strong class="${{cls(dailyPnl)}}">${{accountMode && dailyComplete && dailyPnl !== null ? money(dailyPnl, true) : "请录入账户基准"}}</strong></div>
+        <div class="today-metric"><span>券商当日盈亏${{dailyRate === null ? "" : " · " + (dailyRate * 100).toFixed(2) + "%"}}</span><strong class="${{cls(dailyPnl)}}">${{accountMode && dailyComplete && dailyPnl !== null ? money(dailyPnl, true) : "请录入账户基准"}}</strong></div>
         <div class="today-metric"><span>持仓估算盈亏</span><strong class="${{cls(positionDailyPnl)}}">${{positionDailyPnl === null ? "行情不完整" : money(positionDailyPnl, true)}}</strong></div>
         <div class="today-metric"><span>已实现盈亏（今日卖出）</span><strong class="${{cls(realizedPnl)}}">${{realizedPnl === null ? "-" : money(realizedPnl, true)}}</strong></div>
         <div class="today-metric"><span>当前浮盈亏</span><strong class="${{cls(unrealizedPnl)}}">${{unrealizedPnl === null ? "-" : money(unrealizedPnl, true)}}</strong></div>

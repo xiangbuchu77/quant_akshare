@@ -219,8 +219,8 @@ class QClawServiceTest(unittest.TestCase):
         account = {
             "capturedAt": "2026-07-28T15:00:00",
             "totalAssets": 80_531.62,
-            "marketValue": 9_450.0,
-            "cashComponent": 71_081.62,
+            "marketValue": 9_000.0,
+            "cashComponent": 71_531.62,
             "openingAssets": 80_205.62,
             "netTransfer": 0.0,
             "reportedDailyPnl": 326.0,

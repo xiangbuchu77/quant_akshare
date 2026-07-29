@@ -830,25 +830,8 @@ def _portfolio_metrics(
         account_opening_assets = _optional_float(account_snapshot.get("openingAssets"))
         account_total_assets = _optional_float(account_snapshot.get("totalAssets"))
         account_daily_pnl = _optional_float(account_snapshot.get("reportedDailyPnl"))
-        cash_component = _optional_float(account_snapshot.get("cashComponent"))
-        net_transfer = _optional_float(account_snapshot.get("netTransfer")) or 0.0
         account_as_of = str(account_snapshot.get("capturedAt") or "")
         account_mode = account_opening_assets is not None and account_daily_pnl is not None
-        if account_mode and cash_component is not None and not missing_current_quotes:
-            post_snapshot_buy = 0.0
-            post_snapshot_sell = 0.0
-            for record in today_trades:
-                if account_as_of and str(record.get("time") or "") <= account_as_of:
-                    continue
-                amount = (_optional_float(record.get("price")) or 0.0) * (
-                    _optional_float(record.get("shares")) or 0.0
-                )
-                if _normalise_trade_side(record.get("side")) == "buy":
-                    post_snapshot_buy += amount
-                else:
-                    post_snapshot_sell += amount
-            account_total_assets = cash_component + market_value + post_snapshot_sell - post_snapshot_buy
-            account_daily_pnl = account_total_assets - account_opening_assets - net_transfer
         if account_mode and account_opening_assets:
             account_pnl_rate = account_daily_pnl / account_opening_assets
 
