@@ -7,7 +7,14 @@ from datetime import datetime
 
 from quant_akshare.dashboard import _fetch_sector_flows, _html_document, _price_fmt, build_position_view
 from quant_akshare.realtime import SpotQuote, WatchItem
-from quant_akshare.retail_sentiment import analyze_title, board_code_for, compute_symbol_sentiment, parse_guba_titles
+from quant_akshare.retail_sentiment import (
+    analyze_title,
+    apply_source_weights,
+    blend_source_scores,
+    board_code_for,
+    compute_symbol_sentiment,
+    parse_guba_titles,
+)
 
 
 class DashboardHtmlTest(unittest.TestCase):
@@ -27,7 +34,23 @@ class DashboardHtmlTest(unittest.TestCase):
                     "updatedAt": "10:00:00",
                     "overall": {"index": 45.0, "buyIndex": 30.0, "sellIndex": 10.0, "postCount": 20, "signal": "开始升温", "level": "neutral"},
                     "items": [
-                        {"symbol": "159869", "name": "游戏ETF华夏", "boardCode": "of159869", "index": 45.0, "buyIndex": 30.0, "sellIndex": 10.0, "postCount": 20, "newbieRatio": 25.0, "signal": "开始升温", "level": "neutral", "topPosts": []}
+                        {
+                            "symbol": "159869",
+                            "name": "游戏ETF华夏",
+                            "boardCode": "of159869",
+                            "index": 45.0,
+                            "buyIndex": 30.0,
+                            "sellIndex": 10.0,
+                            "postCount": 20,
+                            "newbieRatio": 25.0,
+                            "signal": "开始升温",
+                            "level": "neutral",
+                            "topPosts": [],
+                            "heatSources": [
+                                {"source": "guba", "label": "股吧语义", "score": 40.0},
+                                {"source": "xueqiu", "label": "雪球讨论", "score": 60.0},
+                            ],
+                        }
                     ],
                 },
                 "tradeDate": "2026-07-09",
@@ -76,9 +99,12 @@ class DashboardHtmlTest(unittest.TestCase):
         self.assertIn("支撑位", html)
         self.assertIn("supportEval", html)
         self.assertIn("当日板块资金流向", html)
-        self.assertIn("股吧散户情绪温度计", html)
+        self.assertIn("宝妈指数 / 散户情绪温度计", html)
         self.assertIn("renderRetailSentiment", html)
         self.assertIn("latestRetailSentiment", html)
+        self.assertIn("sentiment-sources", html)
+        self.assertIn("source.detail", html)
+        self.assertIn("雪球讨论", html)
         self.assertIn("parseSectorFlowPayload", html)
         self.assertIn("fetchSectorFlowPage", html)
         self.assertIn("refreshSectorFlows", html)
@@ -220,6 +246,39 @@ class DashboardHtmlTest(unittest.TestCase):
         result = compute_symbol_sentiment("159869", "游戏ETF华夏", "of159869", [post])
         self.assertGreater(result["index"], 0)
         self.assertEqual(result["boardCode"], "of159869")
+
+    def test_retail_sentiment_blends_configured_source_weights(self) -> None:
+        score, breakdown = blend_source_scores(
+            {"guba": 20, "eastmoney": 80, "xueqiu": 60, "weibo": 100}
+        )
+
+        self.assertAlmostEqual(score, 41.0)
+        self.assertEqual(len(breakdown), 4)
+        self.assertAlmostEqual(sum(item["appliedWeight"] for item in breakdown), 1.0)
+
+    def test_retail_sentiment_renormalizes_missing_sources(self) -> None:
+        score, breakdown = blend_source_scores(
+            {"guba": 20, "eastmoney": None, "xueqiu": 60, "weibo": None}
+        )
+
+        self.assertAlmostEqual(score, 30.0)
+        self.assertEqual([item["source"] for item in breakdown], ["guba", "xueqiu"])
+        self.assertAlmostEqual(breakdown[0]["appliedWeight"], 0.75)
+
+    def test_retail_sentiment_applies_heat_profile_without_guba(self) -> None:
+        empty = compute_symbol_sentiment("000001", "平安银行", "000001", [])
+        result = apply_source_weights(
+            empty,
+            {
+                "eastmoney": {"score": 80, "detail": "关注指数80"},
+                "weibo": {"score": 40, "detail": "24小时榜第31"},
+            },
+        )
+
+        self.assertAlmostEqual(result["index"], 70.0)
+        self.assertEqual(result["sourceCount"], 2)
+        self.assertAlmostEqual(result["scoreCoverage"], 0.2)
+        self.assertEqual(result["heatSources"][0]["detail"], "关注指数80")
 
     def test_fetch_sector_flows_can_be_empty_without_crashing(self) -> None:
         flows = _fetch_sector_flows()

@@ -440,6 +440,28 @@ def _html_document(title: str, views: list[PositionView], payload: dict) -> str:
       color: var(--muted);
       font-size: 12px;
     }}
+    .sentiment-sources {{
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 8px;
+    }}
+    .sentiment-source {{
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fff;
+      padding: 3px 6px;
+      color: var(--muted);
+      font-size: 11px;
+      white-space: nowrap;
+    }}
+    .sentiment-source b {{
+      color: var(--ink);
+      font-size: 11px;
+    }}
     .sector-grid {{
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -929,9 +951,9 @@ def _html_document(title: str, views: list[PositionView], payload: dict) -> str:
     </section>
     <section class="market-strip" id="marketStrip"></section>
     <section class="sentiment-panel">
-      <h2>股吧散户情绪温度计</h2>
+      <h2>宝妈指数 / 散户情绪温度计</h2>
       <div class="sentiment-wrap" id="retailSentiment">
-        <div class="sentiment-main"><span>读取中</span><strong>-</strong><p>基于东方财富股吧标题，作为反向情绪参考。</p></div>
+        <div class="sentiment-main"><span>读取中</span><strong>-</strong><p>正在汇总股吧、东财、雪球与微博热度。</p></div>
       </div>
     </section>
     <section class="sector-panel">
@@ -1544,32 +1566,39 @@ def _html_document(title: str, views: list[PositionView], payload: dict) -> str:
       if (!target) return;
       const overall = data && data.overall ? data.overall : null;
       if (!overall) {{
-        target.innerHTML = `<div class="sentiment-main"><span>东方财富股吧</span><strong>-</strong><p>暂无散户情绪数据。</p></div>`;
+        target.innerHTML = `<div class="sentiment-main"><span>多来源散户情绪</span><strong>-</strong><p>暂无散户情绪数据。</p></div>`;
         return;
       }}
       const items = Array.isArray(data.items) ? data.items : [];
-      const itemHtml = items.map(item => `
-        <div class="sentiment-card">
-          <h3>${{escapeHtml(item.name || item.symbol)}} <small>${{escapeHtml(item.boardCode || item.symbol)}}</small></h3>
-          <strong class="${{sentimentLevelClass(item.level)}}">${{num(item.index, 1)}}</strong>
-          <p>${{escapeHtml(item.signal || "")}} · ${{item.postCount || 0}}帖 · 小白占比 ${{num(item.newbieRatio || 0, 1)}}%</p>
-          <div class="sentiment-bars">
-            <div class="sentiment-bar"><span><em>追涨温度</em><b>${{num(item.buyIndex || 0, 1)}}</b></span><div class="sentiment-track"><div class="sentiment-fill buy" style="width:${{Math.min(100, item.buyIndex || 0)}}%"></div></div></div>
-            <div class="sentiment-bar"><span><em>割肉温度</em><b>${{num(item.sellIndex || 0, 1)}}</b></span><div class="sentiment-track"><div class="sentiment-fill sell" style="width:${{Math.min(100, item.sellIndex || 0)}}%"></div></div></div>
-          </div>
-          <div class="sentiment-posts">${{(item.topPosts || []).slice(0, 2).map(post => `<div>${{escapeHtml(post.title)}} · ${{escapeHtml(post.intent || "neutral")}}</div>`).join("") || escapeHtml(item.error || "暂无典型小白帖")}}</div>
-        </div>`).join("");
+      const itemHtml = items.map(item => {{
+        const sourceScores = (item.heatSources || []).map(source => `
+          <span class="sentiment-source" title="${{escapeHtml((source.detail || "") + " · 当前权重 " + Math.round((source.appliedWeight || 0) * 100) + "%")}}">
+            ${{escapeHtml(source.label || source.source)}} <b>${{num(source.score, 1)}}</b>
+          </span>`).join("");
+        return `
+          <div class="sentiment-card">
+            <h3>${{escapeHtml(item.name || item.symbol)}} <small>${{escapeHtml(item.boardCode || item.symbol)}}</small></h3>
+            <strong class="${{sentimentLevelClass(item.level)}}">${{num(item.index, 1)}}</strong>
+            <p>${{escapeHtml(item.signal || "")}} · ${{item.postCount || 0}}帖 · 小白占比 ${{num(item.newbieRatio || 0, 1)}}%</p>
+            <div class="sentiment-sources">${{sourceScores || '<span class="sentiment-source">暂无跨平台旁证</span>'}}</div>
+            <div class="sentiment-bars">
+              <div class="sentiment-bar"><span><em>追涨温度</em><b>${{num(item.buyIndex || 0, 1)}}</b></span><div class="sentiment-track"><div class="sentiment-fill buy" style="width:${{Math.min(100, item.buyIndex || 0)}}%"></div></div></div>
+              <div class="sentiment-bar"><span><em>割肉温度</em><b>${{num(item.sellIndex || 0, 1)}}</b></span><div class="sentiment-track"><div class="sentiment-fill sell" style="width:${{Math.min(100, item.sellIndex || 0)}}%"></div></div></div>
+            </div>
+            <div class="sentiment-posts">${{(item.topPosts || []).slice(0, 2).map(post => `<div>${{escapeHtml(post.title)}} · ${{escapeHtml(post.intent || "neutral")}}</div>`).join("") || escapeHtml(item.error ? item.error + "，已使用跨平台热度" : "暂无典型小白帖")}}</div>
+          </div>`;
+      }}).join("");
       target.innerHTML = `
         <div class="sentiment-main">
-          <span>${{escapeHtml((data.source || "东方财富股吧") + " · " + (data.updatedAt || ""))}}</span>
+          <span>${{escapeHtml((data.source || "多来源散户情绪") + " · " + (data.updatedAt || ""))}}</span>
           <strong class="${{sentimentLevelClass(overall.level)}}">${{num(overall.index, 1)}}</strong>
-          <p>${{escapeHtml(overall.signal || "")}} · 样本 ${{overall.postCount || 0}} 帖</p>
+          <p>${{escapeHtml(overall.signal || "")}} · ${{overall.trackedCount || items.length}}只标的 · ${{overall.sourceCount || 0}}个有效来源 · 股吧样本 ${{overall.postCount || 0}}帖</p>
           <div class="sentiment-bars">
             <div class="sentiment-bar"><span><em>宝妈买入/追涨</em><b>${{num(overall.buyIndex || 0, 1)}}</b></span><div class="sentiment-track"><div class="sentiment-fill buy" style="width:${{Math.min(100, overall.buyIndex || 0)}}%"></div></div></div>
             <div class="sentiment-bar"><span><em>宝妈卖出/割肉</em><b>${{num(overall.sellIndex || 0, 1)}}</b></span><div class="sentiment-track"><div class="sentiment-fill sell" style="width:${{Math.min(100, overall.sellIndex || 0)}}%"></div></div></div>
           </div>
         </div>
-        <div class="sentiment-grid">${{itemHtml || '<div class="sentiment-card"><h3>暂无标的</h3><p>导入持仓或自选后显示股吧情绪。</p></div>'}}</div>`;
+        <div class="sentiment-grid">${{itemHtml || '<div class="sentiment-card"><h3>暂无标的</h3><p>导入持仓或自选后显示散户情绪。</p></div>'}}</div>`;
     }}
     function escapeHtml(value) {{
       return String(value ?? "")
