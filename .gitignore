@@ -1,0 +1,32 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+build/
+dist/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*api_key*
+*.pem
+*.key
+
+# Runtime data and generated reports
+data/*
+!data/.gitkeep
+reports/*
+!reports/.gitkeep
+qclaw_agent_workspace/
+*.log
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
+*.swp

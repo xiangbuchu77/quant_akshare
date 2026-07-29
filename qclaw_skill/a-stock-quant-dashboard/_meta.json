@@ -1,0 +1,6 @@
+{
+  "name": "a-stock-quant-dashboard",
+  "version": "0.1.0",
+  "description": "A股持仓与自选股看板 API-only QClaw skill",
+  "entrypoint": "http://127.0.0.1:18766/qclaw/message"
+}
