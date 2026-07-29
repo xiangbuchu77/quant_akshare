@@ -1195,14 +1195,19 @@ def _html_document(title: str, views: list[PositionView], payload: dict) -> str:
       setStockManageMessage("正在写入组合账本。");
       try {{
         const data = type === "holding"
-          ? await postQClawAction("import_holdings", {{ holdings: [{{ symbol, cost, shares }}] }})
+          ? await postQClawAction("apply_trade", {{ symbol, side: "buy", price: cost, shares }})
           : await postQClawAction("import_watchlist", {{ symbols: [symbol] }});
         syncPositionsFromState(data.state);
         await syncDynamicSnapshot();
         document.getElementById("newStockSymbol").value = "";
         document.getElementById("newStockCost").value = "";
         document.getElementById("newStockShares").value = "";
-        setStockManageMessage(`${{displayNameForSymbol(symbol)}}已加入${{type === "holding" ? "持仓" : "自选"}}。`, "up");
+        setStockManageMessage(
+          type === "holding"
+            ? `${{displayNameForSymbol(symbol)}}已按今日买入加入持仓和成交记录。`
+            : `${{displayNameForSymbol(symbol)}}已加入自选。`,
+          "up"
+        );
       }} catch (error) {{
         setStockManageMessage(`新增失败：${{error.message}}`, "down");
       }} finally {{

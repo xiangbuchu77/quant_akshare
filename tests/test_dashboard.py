@@ -142,6 +142,8 @@ class DashboardHtmlTest(unittest.TestCase):
         self.assertIn("removeWatchForm", html)
         self.assertIn("新增股票", html)
         self.assertIn("删除自选", html)
+        self.assertIn('postQClawAction("apply_trade", { symbol, side: "buy", price: cost, shares })', html)
+        self.assertIn("已按今日买入加入持仓和成交记录", html)
         self.assertIn("postQClawAction", html)
         self.assertIn("dashboardTradeDayIsCurrent", html)
         self.assertIn("refreshForNewTradeDay", html)
