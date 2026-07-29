@@ -704,6 +704,13 @@ def _html_document(title: str, views: list[PositionView], payload: dict) -> str:
       margin-top: 4px;
       font-size: 18px;
     }}
+    .today-metric small {{
+      display: block;
+      margin-top: 4px;
+      color: #687385;
+      font-size: 11px;
+      line-height: 1.35;
+    }}
     .today-grid {{
       display: grid;
       grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -971,7 +978,7 @@ def _html_document(title: str, views: list[PositionView], payload: dict) -> str:
       <div class="trade-msg" id="accountSnapshotMsg">账户口径以总资产为准；未设置时使用持仓与成交记录估算。</div>
       <div class="today-summary" id="todaySummary">
         <div class="today-metric"><span>今日交易</span><strong>读取中</strong></div>
-        <div class="today-metric"><span>账户当日盈亏</span><strong>未设置</strong></div>
+        <div class="today-metric"><span>券商当日盈亏</span><strong>未设置</strong></div>
         <div class="today-metric"><span>持仓估算盈亏</span><strong>-</strong></div>
         <div class="today-metric"><span>已实现盈亏</span><strong>-</strong></div>
         <div class="today-metric"><span>当前浮盈亏</span><strong>-</strong></div>
@@ -1744,6 +1751,13 @@ def _html_document(title: str, views: list[PositionView], payload: dict) -> str:
       const dailyComplete = metrics ? metrics.complete : accountPnl.hasBaseline;
       const accountMode = metrics && metrics.dailyPnlSource === "account";
       const positionDailyPnl = metrics ? metrics.positionDailyPnl : accountPnl.value;
+      const positionPnlComplete = metrics ? metrics.positionPnlComplete !== false : accountPnl.hasBaseline;
+      const positionIssues = metrics && Array.isArray(metrics.positionUnreconciled) ? metrics.positionUnreconciled : [];
+      const positionIssueText = positionIssues.map(item => {{
+        const difference = Number(item.difference || 0);
+        const action = difference > 0 ? `新增${{difference}}股未记成交` : `减少${{Math.abs(difference)}}股未记成交`;
+        return `${{displayNameForSymbol(String(item.symbol || ""))}}：${{action}}`;
+      }}).join("；");
       const dailyRate = metrics ? metrics.dailyPnlRate : null;
       const realizedPnl = metrics ? metrics.realizedPnl : null;
       const unrealizedPnl = metrics ? metrics.unrealizedPnl : null;
@@ -1758,7 +1772,7 @@ def _html_document(title: str, views: list[PositionView], payload: dict) -> str:
       document.getElementById("todaySummary").innerHTML = `
         <div class="today-metric"><span>今日交易 · ${{currentTradeDate()}}</span><strong>${{tradeCount}} 笔</strong></div>
         <div class="today-metric"><span>券商当日盈亏${{dailyRate === null ? "" : " · " + (dailyRate * 100).toFixed(2) + "%"}}</span><strong class="${{cls(dailyPnl)}}">${{accountMode && dailyComplete && dailyPnl !== null ? money(dailyPnl, true) : "请录入账户基准"}}</strong></div>
-        <div class="today-metric"><span>持仓估算盈亏</span><strong class="${{cls(positionDailyPnl)}}">${{positionDailyPnl === null ? "行情不完整" : money(positionDailyPnl, true)}}</strong></div>
+        <div class="today-metric"><span>持仓估算盈亏${{positionPnlComplete ? "" : " · 仅已核对"}}</span><strong class="${{cls(positionDailyPnl)}}">${{positionDailyPnl === null ? "无法估算" : money(positionDailyPnl, true)}}</strong>${{positionIssueText ? `<small>${{escapeHtml(positionIssueText)}}</small>` : ""}}</div>
         <div class="today-metric"><span>已实现盈亏（今日卖出）</span><strong class="${{cls(realizedPnl)}}">${{realizedPnl === null ? "-" : money(realizedPnl, true)}}</strong></div>
         <div class="today-metric"><span>当前浮盈亏</span><strong class="${{cls(unrealizedPnl)}}">${{unrealizedPnl === null ? "-" : money(unrealizedPnl, true)}}</strong></div>
         <div class="today-metric"><span>做T收益（成交配对）</span><strong class="${{cls(tProfit)}}">${{metrics && !metrics.tMatchedShares ? "未配对" : money(tProfit, true)}}</strong></div>

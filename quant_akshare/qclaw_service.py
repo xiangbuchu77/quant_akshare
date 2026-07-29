@@ -782,12 +782,14 @@ def _portfolio_metrics(
     market_value = 0.0
     unrealized_pnl = 0.0
     required_current_quotes: set[str] = set()
+    current_shares_by_symbol: dict[str, float] = {}
     for holding in state.holdings:
         symbol = str(holding.get("symbol") or "")
         shares = _optional_float(holding.get("shares")) or 0.0
         cost = _optional_float(holding.get("cost"))
         if shares <= 0:
             continue
+        current_shares_by_symbol[symbol] = shares
         required_current_quotes.add(symbol)
         quote = quotes.get(symbol)
         if quote is None:
@@ -798,11 +800,13 @@ def _portfolio_metrics(
 
     previous_close_value = 0.0
     required_baseline_quotes: set[str] = set()
+    baseline_shares_by_symbol: dict[str, float] = {}
     for item in baseline:
         symbol = str(item.get("symbol") or "")
         shares = _optional_float(item.get("shares")) or 0.0
         if shares <= 0:
             continue
+        baseline_shares_by_symbol[symbol] = shares
         required_baseline_quotes.add(symbol)
         quote = quotes.get(symbol)
         if quote is not None:
@@ -817,8 +821,47 @@ def _portfolio_metrics(
         if symbol not in quotes
     )
     position_daily_pnl = None
+    position_unreconciled: list[dict[str, Any]] = []
+    tracked_position_symbols = 0
     if not missing_metric_quotes:
-        position_daily_pnl = market_value + sell_amount - buy_amount - previous_close_value
+        position_daily_pnl = 0.0
+        position_symbols = (
+            set(current_shares_by_symbol)
+            | set(baseline_shares_by_symbol)
+            | set(by_symbol)
+        )
+        for symbol in sorted(position_symbols):
+            current_shares = current_shares_by_symbol.get(symbol, 0.0)
+            opening_shares = baseline_shares_by_symbol.get(symbol, 0.0)
+            totals = by_symbol.get(
+                symbol,
+                {"buyAmount": 0.0, "buyShares": 0.0, "sellAmount": 0.0, "sellShares": 0.0},
+            )
+            expected_shares = opening_shares + totals["buyShares"] - totals["sellShares"]
+            difference = current_shares - expected_shares
+            if abs(difference) > 1e-6:
+                position_unreconciled.append(
+                    {
+                        "symbol": symbol,
+                        "openingShares": opening_shares,
+                        "buyShares": totals["buyShares"],
+                        "sellShares": totals["sellShares"],
+                        "expectedShares": expected_shares,
+                        "currentShares": current_shares,
+                        "difference": difference,
+                    }
+                )
+                continue
+            quote = quotes[symbol]
+            position_daily_pnl += (
+                current_shares * quote.price
+                + totals["sellAmount"]
+                - totals["buyAmount"]
+                - opening_shares * quote.prev_close
+            )
+            tracked_position_symbols += 1
+        if position_symbols and tracked_position_symbols == 0:
+            position_daily_pnl = None
 
     account_daily_pnl = None
     account_total_assets = None
@@ -847,6 +890,8 @@ def _portfolio_metrics(
         "dailyPnlRate": round(account_pnl_rate, 8) if account_pnl_rate is not None else None,
         "dailyPnlSource": "account" if account_mode else "positions",
         "positionDailyPnl": round(position_daily_pnl, 3) if position_daily_pnl is not None else None,
+        "positionPnlComplete": not missing_metric_quotes and not position_unreconciled,
+        "positionUnreconciled": position_unreconciled,
         "accountTotalAssets": round(account_total_assets, 3) if account_total_assets is not None else None,
         "accountOpeningAssets": round(account_opening_assets, 3) if account_opening_assets is not None else None,
         "accountAsOf": account_as_of or None,

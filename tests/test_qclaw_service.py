@@ -179,7 +179,77 @@ class QClawServiceTest(unittest.TestCase):
         self.assertEqual(metrics["dailyPnl"], 550.0)
         self.assertEqual(metrics["realizedPnl"], 100.0)
         self.assertEqual(metrics["unrealizedPnl"], 450.0)
+        self.assertTrue(metrics["positionPnlComplete"])
+        self.assertEqual(metrics["positionUnreconciled"], [])
         self.assertTrue(metrics["complete"])
+
+    def test_position_daily_pnl_excludes_unrecorded_holding_changes(self) -> None:
+        state = QClawState(
+            holdings=[
+                {"symbol": "588000", "cost": 10.0, "shares": 900},
+                {"symbol": "000001", "cost": 12.0, "shares": 200},
+            ],
+            watchlist=[],
+            order=["588000", "000001"],
+            line_overrides={},
+        )
+        etf_quote = SpotQuote(
+            symbol="588000",
+            name="科创50ETF华夏",
+            price=10.5,
+            pct_change=5.0,
+            change=0.5,
+            open=10.1,
+            high=10.6,
+            low=10.0,
+            prev_close=10.0,
+            volume=100,
+            amount=1_000_000,
+            turnover=1.2,
+            pe=0,
+            pb=0,
+            fetched_at=datetime(2026, 7, 28, 10, 0, 0),
+        )
+        added_quote = SpotQuote(
+            symbol="000001",
+            name="平安银行",
+            price=12.5,
+            pct_change=4.0,
+            change=0.5,
+            open=12.0,
+            high=12.6,
+            low=11.9,
+            prev_close=12.0,
+            volume=100,
+            amount=1_000_000,
+            turnover=1.2,
+            pe=6,
+            pb=1,
+            fetched_at=datetime(2026, 7, 28, 10, 0, 0),
+        )
+        trades = [
+            {
+                "id": "sell-1",
+                "time": "2026-07-28T09:35:00",
+                "symbol": "588000",
+                "side": "sell",
+                "price": 11.0,
+                "shares": 100,
+                "cost_basis": 10.0,
+            }
+        ]
+
+        metrics = _portfolio_metrics(
+            state,
+            [{"symbol": "588000", "shares": 1000}],
+            trades,
+            {"588000": etf_quote, "000001": added_quote},
+        )
+
+        self.assertEqual(metrics["positionDailyPnl"], 550.0)
+        self.assertFalse(metrics["positionPnlComplete"])
+        self.assertEqual(metrics["positionUnreconciled"][0]["symbol"], "000001")
+        self.assertEqual(metrics["positionUnreconciled"][0]["difference"], 200.0)
 
     def test_account_snapshot_is_authoritative_for_daily_pnl(self) -> None:
         state = QClawState(
