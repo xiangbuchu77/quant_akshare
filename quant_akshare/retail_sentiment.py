@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 from datetime import datetime
 import html
+from html.parser import HTMLParser
 import json
 from math import isfinite
 from pathlib import Path
@@ -124,6 +125,39 @@ class AnalyzedPost:
     intent: str
     sentiment: float
     signals: tuple[str, ...]
+
+
+class GubaTitleParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.titles: list[str] = []
+        self._capturing = False
+        self._attribute_title = ""
+        self._text_parts: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag.lower() != "a" or self._capturing:
+            return
+        attributes = dict(attrs)
+        href = attributes.get("href") or ""
+        if not re.search(r"(?:^|eastmoney\.com)/news,[^\"?#]+", href):
+            return
+        self._capturing = True
+        self._attribute_title = attributes.get("title") or ""
+        self._text_parts = []
+
+    def handle_data(self, data: str) -> None:
+        if self._capturing:
+            self._text_parts.append(data)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag.lower() != "a" or not self._capturing:
+            return
+        title = self._attribute_title or "".join(self._text_parts)
+        self.titles.append(title)
+        self._capturing = False
+        self._attribute_title = ""
+        self._text_parts = []
 
 
 def fetch_retail_sentiment(items: Iterable[WatchItem], quotes: dict[str, SpotQuote]) -> dict:
@@ -500,12 +534,12 @@ def fetch_guba_html(board_code: str, timeout: float = 8.0) -> str:
 
 
 def parse_guba_titles(text: str) -> list[str]:
-    titles = re.findall(r'<a[^>]+href="(?:https://guba\.eastmoney\.com)?/news,[^"]+"[^>]+title="([^"]+)"', text)
-    if not titles:
-        titles = re.findall(r'title="([^"]+)"[^>]+href="(?:https://guba\.eastmoney\.com)?/news,', text)
+    parser = GubaTitleParser()
+    parser.feed(text)
+    parser.close()
     cleaned: list[str] = []
     seen: set[str] = set()
-    for title in titles:
+    for title in parser.titles:
         value = html.unescape(re.sub(r"<[^>]+>", "", title)).strip()
         if not value or value == "点击开始搜索" or value in seen:
             continue

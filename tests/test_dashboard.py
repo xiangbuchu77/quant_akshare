@@ -239,6 +239,14 @@ class DashboardHtmlTest(unittest.TestCase):
     def test_retail_sentiment_uses_guba_titles(self) -> None:
         html = '<a href="/news,of159869,1.html" title="小白还能上车吗"></a>'
         self.assertEqual(parse_guba_titles(html), ["小白还能上车吗"])
+        current_html = (
+            '<div class="title"><a data-postid="1752586491" '
+            'href="/news,000021,1752586491.html">今天追进去的朋友们估计难搞了</a></div>'
+        )
+        self.assertEqual(
+            parse_guba_titles(current_html),
+            ["今天追进去的朋友们估计难搞了"],
+        )
         self.assertEqual(board_code_for("159869", "游戏ETF华夏"), "of159869")
         post = analyze_title("小白还能上车吗，想买一点")
         self.assertGreater(post.score, 20)
